@@ -1,0 +1,53 @@
+@import "tailwindcss";
+
+.lucide {
+    width: 1.2em;
+    height: 1.2em;
+}
+
+
+* {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+    -ms-touch-action: manipulation;
+    touch-action: manipulation;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    hyphenate-limit-chars: 14 7 7;
+}
+
+html {
+    font-size: clamp(12px, 1.4vw + 0.5rem, 18px);
+}
+
+@font-face {
+    font-family: 'Fredoka';
+    src: url("/fonts/Fredoka.woff2") format('woff2');
+}
+
+@theme {
+    --radius-5xl: 2.5rem;
+    --radius-6xl: 3rem;
+    --radius-7xl: 3.5rem;
+
+    --text-4\.5xl: 2.5rem;
+
+    --font-sans: 'Fredoka', 'Inter', 'Helvetica', 'Arial', sans-serif;
+    --font-mono: 'Fira Code', 'Courier New', Courier, monospace;
+
+    --animate-spin-slow: spin 3s linear infinite;
+
+    --color-theme-50: var(--color-indigo-50);
+    --color-theme-100: var(--color-indigo-100);
+    --color-theme-200: var(--color-indigo-200);
+    --color-theme-300: var(--color-indigo-300);
+    --color-theme-400: var(--color-indigo-400);
+    --color-theme-500: var(--color-indigo-500);
+    --color-theme-600: var(--color-indigo-600);
+    --color-theme-700: var(--color-indigo-700);
+    --color-theme-800: var(--color-indigo-800);
+    --color-theme-900: var(--color-indigo-900);
+    --color-theme-950: var(--color-indigo-950);
+}
+
+@source inline("bg-{red,orange,amber,yellow,lime,green,emerald,teal,cyan,sky,blue,indigo,violet,purple,fuchsia,pink,rose,slate,gray,zinc,neutral,stone}-{50,100,200,300,400,500,600,700,800,900,950}");
