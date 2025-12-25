@@ -1,6 +1,8 @@
-# Vote
+# khisdapaze - Voting
 
-A modern polling application with real-time voting and Google OAuth authentication.
+A very simple anonymous voting app. Users can be invited directly or join via QR code. Anonymity is guaranteed by not storing any connection to the user once voted.
+
+![Voting Interface](docs/poll.png)
 
 ## Tech Stack
 
@@ -25,6 +27,7 @@ A modern polling application with real-time voting and Google OAuth authenticati
 
 - Node.js (with pnpm)
 - Python 3.11
+- [uv](https://github.com/astral-sh/uv) (Python package manager)
 - Redis (for local development)
 - DigitalOcean CLI (`doctl`) for deployment
 - `lftp` for FTP deployment (optional)
@@ -64,9 +67,7 @@ pnpm install
 Backend:
 ```bash
 cd server
-python -m venv .venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-pip install -r requirements.txt
+uv sync
 ```
 
 ## Development
@@ -84,8 +85,7 @@ The frontend will run on `http://localhost:5173`
 
 ```bash
 cd server
-source .venv/bin/activate
-python -m src
+uv run python src/__main__.py
 ```
 
 The backend will run on `http://localhost:8000`
@@ -137,12 +137,6 @@ vote/
 └── build_and_deploy.sh  # Deployment script
 ```
 
-## Environment Files
-
-- `.env` - Local development environment
-- `.env.production` - Production environment (not committed to git)
-- `.env.example` - Template with all required variables
-
 ## License
 
-[Your License]
+MIT
