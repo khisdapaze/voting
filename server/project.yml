@@ -1,0 +1,20 @@
+parameters: {}
+packages:
+    - name: default
+      shared: false
+      parameters: {}
+      annotations: {}
+      functions:
+        - name: "vote"
+          binary: false
+          main: ""
+          runtime: python:3.11
+          web: "raw"
+          parameters: {}
+          environment:
+            REDIS_CONNECTION_STRING: ${REDIS_CONNECTION_STRING}
+            GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+            FRONTEND_URL: ${FRONTEND_URL}
+          annotations:
+            web-custom-options: true
+          limits: {}

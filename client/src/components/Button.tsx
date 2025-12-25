@@ -1,16 +1,21 @@
-import React, { useState } from 'react';
+import React from 'react';
 import Slot, { type Slottable } from './Slot.tsx';
 import classnames from '../utils/classnames.ts';
+import useControllableState from '../utils/useControllableState.tsx';
 
 type ButtonProps = Omit<React.ComponentPropsWithRef<'button'>, 'onClick'> &
     Slottable & {
         onClick?: (e: React.MouseEvent<HTMLButtonElement>) => void | Promise<void>;
+        isLoading?: boolean;
     };
 
 const MIN_LOADING_TIME_MS = 500;
 
-const useAsyncClick = (onClick?: (e: React.MouseEvent<HTMLButtonElement>) => void | Promise<void>) => {
-    const [isLoading, setIsLoading] = useState(false);
+const useAsyncClick = (
+    onClick?: (e: React.MouseEvent<HTMLButtonElement>) => void | Promise<void>,
+    propsIsLoading?: boolean
+) => {
+    const [isLoading, setIsLoading] = useControllableState(false, propsIsLoading);
 
     const handleClick = async (e: React.MouseEvent<HTMLButtonElement>) => {
         if (!onClick) return;
@@ -39,8 +44,15 @@ const useAsyncClick = (onClick?: (e: React.MouseEvent<HTMLButtonElement>) => voi
     return { isLoading, onClick: handleClick };
 };
 
-export const PrimaryButton = ({ className, disabled, asChild, onClick, ...props }: ButtonProps) => {
-    const { isLoading, onClick: handleClick } = useAsyncClick(onClick);
+export const PrimaryButton = ({
+    className,
+    disabled,
+    asChild,
+    onClick,
+    isLoading: propsIsLoading,
+    ...props
+}: ButtonProps) => {
+    const { isLoading, onClick: handleClick } = useAsyncClick(onClick, propsIsLoading);
     const Component = asChild ? Slot : 'button';
 
     return (
@@ -60,8 +72,15 @@ export const PrimaryButton = ({ className, disabled, asChild, onClick, ...props 
     );
 };
 
-export const SecondaryButton = ({ className, disabled, asChild, onClick, ...props }: ButtonProps) => {
-    const { isLoading, onClick: handleClick } = useAsyncClick(onClick);
+export const SecondaryButton = ({
+    className,
+    disabled,
+    asChild,
+    onClick,
+    isLoading: propsIsLoading,
+    ...props
+}: ButtonProps) => {
+    const { isLoading, onClick: handleClick } = useAsyncClick(onClick, propsIsLoading);
     const Component = asChild ? Slot : 'button';
 
     return (

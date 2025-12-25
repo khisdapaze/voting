@@ -20,13 +20,13 @@ export interface PollUser extends User {
 
 export interface Poll {
     id: string;
+    secret: string;
     createdAt: string;
     createdByEmail?: string;
 
     title: string;
     options: string[];
     choiceType: 'SINGLE' | 'MULTIPLE';
-    accessType: 'PUBLIC' | 'LINK_ONLY' | 'INVITE_ONLY';
     colorScheme:
         | 'RED'
         | 'ORANGE'

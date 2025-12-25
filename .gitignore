@@ -1,0 +1,9 @@
+# Environment variables (ignore all .env* except .env.example)
+.env*
+!.env.example
+
+# OS files
+.DS_Store
+
+# IDE
+.idea/

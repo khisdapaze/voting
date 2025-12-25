@@ -8,6 +8,8 @@ import { PrimaryButton, SecondaryButton } from '../components/Button.tsx';
 import { generatePath, Link, useNavigate, useParams } from 'react-router-dom';
 import { ROUTES } from '../routes.ts';
 import { OptionButton, PollHeader } from './PollDetailPage.tsx';
+import QrCode from '../components/QrCode.tsx';
+import Page from '../components/Page.tsx';
 
 const CreatePollHeader = () => {
     return (
@@ -24,7 +26,7 @@ const InviteUsersForm = ({
     users,
     ...props
 }: React.ComponentPropsWithRef<'form'> & {
-    onFormValuesSubmit?: (values: { users: User[] }) => void;
+    onFormValuesSubmit?: (values: { users: User[] }) => Promise<void>;
     poll: Poll;
     users: User[];
 }) => {
@@ -48,12 +50,21 @@ const InviteUsersForm = ({
         setSelectedUsers([]);
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        onFormValuesSubmit?.({
-            users: selectedUsers.map((email) => otherUsers.find((u) => u.email === email)).filter(Boolean) as User[],
-        });
+        setIsSubmitting(true);
+        try {
+            await onFormValuesSubmit?.({
+                users: selectedUsers
+                    .map((email) => otherUsers.find((u) => u.email === email))
+                    .filter(Boolean) as User[],
+            });
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     return (
@@ -63,16 +74,8 @@ const InviteUsersForm = ({
             {...props}
         >
             <SecondaryButton className="justify-start" type="button" onClick={handleSelectAllUsers}>
-                Alle Mitglieder auswählen
+                Alle auswählen
             </SecondaryButton>
-
-            {/*<button className="rounded-5xl bg-gray-100 text-gray-800 text-xl font-semibold py-4 px-6 text-center  hover:bg-gray-200 cursor-pointer active:bg-gray-300 flex items-center gap-4  justify-start">*/}
-            {/*    Aktive Mitglieder auswählen*/}
-            {/*</button>*/}
-
-            {/*<button className="rounded-5xl bg-gray-100 text-gray-800 text-xl font-semibold py-4 px-6 text-center  hover:bg-gray-200 cursor-pointer active:bg-gray-300 flex items-center gap-4 justify-start">*/}
-            {/*    Passive Mitglieder auswählen <span className="ml-auto text-gray-500">18</span>*/}
-            {/*</button>*/}
 
             <SecondaryButton className="justify-start" type="button" onClick={handleResetSelection}>
                 Zurücksetzen
@@ -87,11 +90,16 @@ const InviteUsersForm = ({
                     isSelected={selectedUsers.includes(user.email) || pollUsersEmails.includes(user.email)}
                     disabled={pollUsersEmails.includes(user.email)}
                 >
-                    {user.name}
+                    <span className="flex flex-col">
+                        <span>{user.name}</span>
+                        <span className="text-xl text-gray-500 font-medium">{user.email}</span>
+                    </span>
                 </OptionButton>
             ))}
 
-            <PrimaryButton className="sticky bottom-6">Mitglieder hinzufügen</PrimaryButton>
+            <PrimaryButton className="sticky bottom-6" isLoading={isSubmitting}>
+                Benutzer hinzufügen
+            </PrimaryButton>
         </form>
     );
 };
@@ -112,34 +120,79 @@ const SharePollPage = () => {
 
     if (!poll) {
         return (
-            <div className="flex items-center justify-center h-full w-full text-gray-500 text-2xl font-medium py-12">
-                Lade Abstimmung...
-            </div>
+            <Page>
+                <Page.Inner className="flex-1 flex items-center justify-center text-gray-500 text-2xl font-medium py-12">
+                    Lade Abstimmung...
+                </Page.Inner>
+            </Page>
         );
     }
 
+    const secretUrl = `${window.location.origin}${generatePath(ROUTES.POLL_DETAIL, { pollId: poll!.id })}?secret=${poll.secret}`;
+
+    const handleCopyToClipboard = async () => {
+        navigator.clipboard.writeText(secretUrl);
+        const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+        await wait(500);
+    };
+
     return (
         <Theme theme="gray" base="gray">
-            <div className="flex flex-col min-h-full">
+            <Page>
                 <Theme theme={poll.colorScheme.toLowerCase() as any}>
-                    <PollHeader poll={poll} />
+                    <div className="bg-theme-100 w-full flex flex-col items-center">
+                        <Page.Inner>
+                            <PollHeader poll={poll} />
+                        </Page.Inner>
+                    </div>
                 </Theme>
 
-                <CreatePollHeader />
+                <Page.Inner>
+                    <CreatePollHeader />
 
-                <InviteUsersForm
-                    poll={poll}
-                    users={users!}
-                    onFormValuesSubmit={handleFormValuesSubmit}
-                    className="pt-0"
-                />
+                    <div className="px-6">
+                        <div className="select-text flex flex-col gap-6 items-center p-6 py-12 rounded-5xl bg-theme-100">
+                            <QrCode
+                                value={secretUrl}
+                                className="w-70 h-70 max-w-full max-h-full p-4 rounded-xl border-4 border-theme-200 bg-white"
+                            />
 
-                <div className="p-6">
-                    <SecondaryButton type="button" asChild>
-                        <Link to={generatePath(ROUTES.POLL_MANAGE, { pollId: poll!.id })}>Abstimmung verwalten</Link>
-                    </SecondaryButton>
-                </div>
-            </div>
+                            <PrimaryButton type="button" onClick={handleCopyToClipboard}>
+                                Link kopieren
+                            </PrimaryButton>
+
+                            <a
+                                className="text-center text-balance text-gray-400 text-sm mt-2 break-all hover:underline hover:text-gray-500"
+                                href={secretUrl}
+                                target="_blank"
+                            >
+                                {secretUrl}
+                            </a>
+                        </div>
+                    </div>
+
+                    <div className="p-6">
+                        <SecondaryButton type="button" asChild>
+                            <Link to={generatePath(ROUTES.POLL_MANAGE, { pollId: poll!.id })}>
+                                Abstimmung verwalten
+                            </Link>
+                        </SecondaryButton>
+                    </div>
+
+                    <div className="p-6">
+                        <h2 className="text-3xl font-bold  text-black hyphens-auto text-balance flex">
+                            Benutzer hinzufügen
+                        </h2>
+                    </div>
+
+                    <InviteUsersForm
+                        poll={poll}
+                        users={users!}
+                        onFormValuesSubmit={handleFormValuesSubmit}
+                        className="pt-0"
+                    />
+                </Page.Inner>
+            </Page>
         </Theme>
     );
 };

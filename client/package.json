@@ -1,13 +1,11 @@
 {
   "name": "vote",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
-    "preview": "vite preview",
-    "preview:reimbursement": "VITE_APP_MODE=reimbursement vite preview"
+    "build": "tsc -b && vite build"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.63.0",

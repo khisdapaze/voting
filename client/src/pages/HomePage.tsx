@@ -9,6 +9,7 @@ import { SecondaryButton } from '../components/Button.tsx';
 import { useQuery } from '@tanstack/react-query';
 import { listPollsQuery } from '../data/api.ts';
 import { removeJwt, useViewer } from '../contexts/AuthenticationContext.tsx';
+import Page from '../components/Page.tsx';
 
 const PollCardLink = ({ poll, className, ...props }: React.ComponentPropsWithRef<typeof Link> & { poll: Poll }) => {
     const isOpen = poll.status === 'OPEN';
@@ -22,7 +23,13 @@ const PollCardLink = ({ poll, className, ...props }: React.ComponentPropsWithRef
                 )}
                 {...props}
             >
-                <h1 className="text-3xl font-bold  text-theme-800 hyphens-auto text-balance px-2">{poll.title}</h1>
+                <div className="flex justify-start">
+                    <span className="rounded-full px-2 font-semibold text-2xl text-theme-800 opacity-50 -mb-2">
+                        {poll.createdBy?.name} fragt:
+                    </span>
+                </div>
+
+                <h1 className="text-3xl font-bold  text-theme-800 hyphens-auto text-balance px-2 py-2">{poll.title}</h1>
 
                 {isOpen ? (
                     <div className="rounded-5xl bg-theme-800 text-white text-2xl font-semibold py-4 px-6 text-center mt-auto group-hover:bg-theme-900 group-active:bg-theme-950">
@@ -108,69 +115,11 @@ const AddPollButtons = ({
     onRefetch,
     ...props
 }: React.ComponentPropsWithRef<'div'> & { onRefetch: () => void }) => {
-    /* const handleQrCodeFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-        const file = event.target.files?.[0];
-        if (!file) return;
-
-        const imageUrl = URL.createObjectURL(file);
-
-        try {
-            const img = new Image();
-            await new Promise((resolve, reject) => {
-                img.onload = resolve;
-                img.onerror = reject;
-                img.src = imageUrl;
-            });
-
-            const canvas = document.createElement('canvas');
-            canvas.width = img.width;
-            canvas.height = img.height;
-
-            const context = canvas.getContext('2d', { willReadFrequently: true });
-            if (!context) throw new Error('Canvas context not available');
-
-            context.drawImage(img, 0, 0);
-            const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
-
-            const code = jsQR(imageData.data, imageData.width, imageData.height);
-            if (code) {
-                console.log('QR Code Data:', code.data);
-            } else {
-                console.error('No QR code found');
-            }
-        } catch (error) {
-            console.error('Failed to process QR code:', error);
-        } finally {
-            URL.revokeObjectURL(imageUrl);
-        }
-    };*/
-
     return (
         <div
             className={classnames('flex flex-col min-h-full w-full p-6 gap-6 bg-white justify-start', className)}
             {...props}
         >
-            {/*<div className="flex flex-col gap-4">
-                <SecondaryButton asChild>
-                    <label>
-                        <QrCodeIcon strokeWidth={2.5} />
-                        Abstimmungcode scannen
-                        <input
-                            type="file"
-                            accept="image/*"
-                            capture="environment"
-                            className="hidden"
-                            onChange={handleQrCodeFileChange}
-                        />
-                    </label>
-                </SecondaryButton>
-
-                <SecondaryButton>
-                    <TextCursorInputIcon strokeWidth={2.5} />
-                    Abstimmungcode eingeben
-                </SecondaryButton>
-            </div>*/}
-
             <SecondaryButton onClick={onRefetch}>
                 <RefreshCcwIcon strokeWidth={2.5} />
                 Liste aktualisieren
@@ -195,32 +144,34 @@ const HomePage = () => {
 
     return (
         <Theme theme="gray" base="gray">
-            <div className="flex flex-col min-h-full">
-                <HomeHeader />
+            <Page>
+                <Page.Inner className="flex-1">
+                    <HomeHeader />
 
-                <HomePolls polls={openPolls} className="pt-0" />
+                    <HomePolls polls={openPolls} className="pt-0" />
 
-                <AddPollButtons onRefetch={() => refetch()} />
+                    <AddPollButtons onRefetch={() => refetch()} />
 
-                {closedPolls && closedPolls.length > 0 && (
-                    <>
-                        <div className="flex flex-col p-6 pt-0">
-                            {!isClosedPollsVisible ? (
-                                <SecondaryButton onClick={() => setIsClosedPollsVisible(true)}>
-                                    <ArchiveIcon strokeWidth={2.5} />
-                                    Abgeschlossene anzeigen
-                                </SecondaryButton>
-                            ) : (
-                                <SecondaryButton onClick={() => setIsClosedPollsVisible(false)}>
-                                    Abgeschlossene verbergen
-                                </SecondaryButton>
-                            )}
-                        </div>
+                    {closedPolls && closedPolls.length > 0 && (
+                        <>
+                            <div className="flex flex-col px-6 pt-0 pb-6">
+                                {!isClosedPollsVisible ? (
+                                    <SecondaryButton onClick={() => setIsClosedPollsVisible(true)}>
+                                        <ArchiveIcon strokeWidth={2.5} />
+                                        Abgeschlossene anzeigen
+                                    </SecondaryButton>
+                                ) : (
+                                    <SecondaryButton onClick={() => setIsClosedPollsVisible(false)}>
+                                        Abgeschlossene verbergen
+                                    </SecondaryButton>
+                                )}
+                            </div>
 
-                        {isClosedPollsVisible && <HomePolls polls={closedPolls} />}
-                    </>
-                )}
-            </div>
+                            {isClosedPollsVisible && <HomePolls polls={closedPolls} className="pb-10" />}
+                        </>
+                    )}
+                </Page.Inner>
+            </Page>
         </Theme>
     );
 };

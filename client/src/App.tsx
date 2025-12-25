@@ -14,25 +14,21 @@ const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
 
 const App = () => {
     return (
-        <div className="flex justify-center bg-black  h-screen select-none">
-            <div className="min-h-screen h-screen w-full max-w-[50rem] bg-white overflow-y-auto">
-                <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
-                    <AuthenticationProvider>
-                        <QueryClientProvider client={queryClient}>
-                            <Router>
-                                <Routes>
-                                    <Route path={ROUTES.HOME} element={<HomePage />} />
-                                    <Route path={ROUTES.POLL_DETAIL} element={<PollDetailPage />} />
-                                    <Route path={ROUTES.POLL_CREATE} element={<CreatePollPage />} />
-                                    <Route path={ROUTES.POLL_SHARE} element={<SharePollPage />} />
-                                    <Route path={ROUTES.POLL_MANAGE} element={<ManagePollPage />} />
-                                </Routes>
-                            </Router>
-                        </QueryClientProvider>
-                    </AuthenticationProvider>
-                </GoogleOAuthProvider>
-            </div>
-        </div>
+        <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
+            <AuthenticationProvider>
+                <QueryClientProvider client={queryClient}>
+                    <Router>
+                        <Routes>
+                            <Route path={ROUTES.HOME} element={<HomePage />} />
+                            <Route path={ROUTES.POLL_DETAIL} element={<PollDetailPage />} />
+                            <Route path={ROUTES.POLL_CREATE} element={<CreatePollPage />} />
+                            <Route path={ROUTES.POLL_SHARE} element={<SharePollPage />} />
+                            <Route path={ROUTES.POLL_MANAGE} element={<ManagePollPage />} />
+                        </Routes>
+                    </Router>
+                </QueryClientProvider>
+            </AuthenticationProvider>
+        </GoogleOAuthProvider>
     );
 };
 

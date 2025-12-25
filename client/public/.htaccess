@@ -1,0 +1,23 @@
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteBase /
+
+    # SPA fallback - serve index.html for all non-file requests
+    # Don't rewrite if file exists
+    RewriteCond %{REQUEST_FILENAME} !-f
+    # Don't rewrite if directory exists
+    RewriteCond %{REQUEST_FILENAME} !-d
+    # Serve index.html
+    RewriteRule . /index.html [L]
+</IfModule>
+
+# Don't list directory contents
+Options -Indexes
+
+# Follow symbolic links
+Options +FollowSymLinks
+
+# Security: prevent viewing of .htaccess and other dot files
+<FilesMatch "^\.">
+    Require all denied
+</FilesMatch>

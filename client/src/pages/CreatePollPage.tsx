@@ -4,10 +4,11 @@ import type { Poll } from '../data/types.ts';
 import classnames from '../utils/classnames.ts';
 import { useMutation } from '@tanstack/react-query';
 import { createPollMutation } from '../data/api.ts';
-import { SecondaryButton } from '../components/Button.tsx';
+import { PrimaryButton, SecondaryButton } from '../components/Button.tsx';
 import { generatePath, Link, useNavigate } from 'react-router-dom';
 import { ROUTES } from '../routes.ts';
 import { ChevronDownIcon } from 'lucide-react';
+import Page from '../components/Page.tsx';
 
 const CreatePollHeader = () => {
     return (
@@ -49,12 +50,6 @@ const CHOICE_TYPES = {
     SINGLE: 'Single Choice',
     MULTIPLE: 'Multiple Choice',
 };
-
-/*const ACCESS_TYPES = {
-    PUBLIC: 'Jeder Nutzer',
-    LINK: 'Jeder Nutzer mit Link',
-    INVITED: 'Nur eingeladene Nutzer',
-};*/
 
 const COLOR_SCHEMES = {
     RED: 'Rot',
@@ -109,18 +104,6 @@ const ChoiceTypeSelect = ({ className, ...props }: React.ComponentPropsWithRef<'
     );
 };
 
-/*const AccessTypeSelect = ({ className, ...props }: React.ComponentPropsWithRef<'select'>) => {
-    return (
-        <Select {...props}>
-            {Object.entries(ACCESS_TYPES).map(([value, label]) => (
-                <option key={value} value={value}>
-                    {label}
-                </option>
-            ))}
-        </Select>
-    );
-};*/
-
 const ColorSchemeSelect = ({ className, ...props }: React.ComponentPropsWithRef<'select'>) => {
     return (
         <Select {...props}>
@@ -138,14 +121,11 @@ const CreatePollForm = ({
     onFormValuesSubmit,
     ...props
 }: React.ComponentPropsWithRef<'form'> & {
-    onFormValuesSubmit?: (values: Partial<Poll>) => void;
+    onFormValuesSubmit?: (values: Partial<Poll>) => Promise<void>;
 }) => {
     const [title, setTitle] = useState('');
     const [options, setOptions] = useState<string[]>(['', '']);
     const [choiceType, setChoiceType] = useState<keyof typeof CHOICE_TYPES>('SINGLE');
-    /*
-    const [accessType, setAccessType] = useState<keyof typeof ACCESS_TYPES>('PUBLIC');
-*/
     const [colorScheme, setColorScheme] = useState<keyof typeof COLOR_SCHEMES>('INDIGO');
 
     const handleOptionChange = (index: number, value: string) => {
@@ -158,19 +138,23 @@ const CreatePollForm = ({
         setOptions([...options, '']);
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         const filteredOptions = [...new Set(options.filter((option) => option.trim() !== ''))];
 
-        onFormValuesSubmit?.({
-            title,
-            options: filteredOptions,
-            choiceType,
-            /*
-            accessType,
-*/
-            colorScheme,
-        } as Partial<Poll>);
+        setIsSubmitting(true);
+        try {
+            await onFormValuesSubmit?.({
+                title,
+                options: filteredOptions,
+                choiceType,
+                colorScheme,
+            });
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     return (
@@ -214,20 +198,7 @@ const CreatePollForm = ({
                     </div>
                 </div>
 
-                {/*<div className="flex flex-col gap-4 ">*/}
-                {/*    <label className="flex items-center gap-4 text-2xl font-semibold text-gray-700">*/}
-                {/*        Wer kann abstimmen?*/}
-                {/*    </label>*/}
-
-                {/*    <div className="flex justify-between items-center">*/}
-                {/*        <AccessTypeSelect*/}
-                {/*            value={accessType}*/}
-                {/*            onChange={(e) => setAccessType(e.target.value as keyof typeof ACCESS_TYPES)}*/}
-                {/*        />*/}
-                {/*    </div>*/}
-                {/*</div>*/}
-
-                <div className="flex flex-col gap-4 mb-6 flex-1">
+                <div className="flex flex-col gap-4 flex-1">
                     <label className="flex items-center gap-4 text-2xl font-semibold text-gray-700">Farbschema</label>
 
                     <div className="flex justify-between items-center">
@@ -239,9 +210,12 @@ const CreatePollForm = ({
                 </div>
             </div>
 
-            <button className="rounded-5xl bg-gray-800 text-white text-2xl font-semibold py-4 px-6 text-center mt-auto hover:bg-gray-900 cursor-pointer active:bg-gray-950">
-                Abstimmung erstellen
-            </button>
+            <span className="text-2xl font-medium text-gray-600">
+                Abstimmungen werden nach spätestens sieben Tagen automatisch beendet und nach spätestens 30 Tagen
+                automatisch gelöscht. Du kannst sie jederzeit manuell beenden oder löschen.
+            </span>
+
+            <PrimaryButton isLoading={isSubmitting}>Abstimmung erstellen</PrimaryButton>
         </form>
     );
 };
@@ -258,10 +232,12 @@ const CreatePollPage = () => {
 
     return (
         <Theme theme="gray" base="gray">
-            <div className="flex flex-col min-h-full">
-                <CreatePollHeader />
-                <CreatePollForm onFormValuesSubmit={handleFormValuesSubmit} />
-            </div>
+            <Page>
+                <Page.Inner>
+                    <CreatePollHeader />
+                    <CreatePollForm onFormValuesSubmit={handleFormValuesSubmit} />
+                </Page.Inner>
+            </Page>
         </Theme>
     );
 };

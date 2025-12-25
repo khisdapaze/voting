@@ -9,4 +9,12 @@ wheels/
 # Virtual environments
 .venv
 
+# digitalocean files
+.deployed
+
+# editor directories and files
+.idea
 .DS_Store
+
+# sensitive files
+src/users.json

@@ -9,6 +9,7 @@ import { generatePath, Link, useNavigate, useParams } from 'react-router-dom';
 import { ROUTES } from '../routes.ts';
 import { OptionButton, PollHeader } from './PollDetailPage.tsx';
 import { useConfirmDialog } from '../components/ConfirmDialog.tsx';
+import Page from '../components/Page.tsx';
 
 const ManagePollHeader = () => {
     return (
@@ -32,7 +33,10 @@ const UserList = ({
         >
             {users?.map((user) => (
                 <OptionButton key={user.name} isMultipleChoice className="w-full" isReadOnly>
-                    {user.name}
+                    <span className="flex flex-col">
+                        <span>{user.name}</span>
+                        <span className="text-xl text-gray-500 font-medium">{user.email}</span>
+                    </span>
                 </OptionButton>
             ))}
             {users && users.length === 0 && (
@@ -46,7 +50,7 @@ const UserList = ({
 
 const ManagePollPage = () => {
     const { pollId } = useParams();
-    const { data: poll } = useQuery(getPollQuery(pollId || ''));
+    const { data: poll, refetch } = useQuery(getPollQuery(pollId || ''));
 
     const { mutateAsync: closePoll } = useMutation(closePollMutation(pollId || ''));
     const { mutateAsync: deletePoll } = useMutation(deletePollMutation(pollId || ''));
@@ -61,6 +65,7 @@ const ManagePollPage = () => {
         if (!confirmed) return;
 
         await closePoll();
+        await refetch();
         navigate(generatePath(ROUTES.POLL_DETAIL, { pollId: poll!.id }));
     };
 
@@ -74,9 +79,11 @@ const ManagePollPage = () => {
 
     if (!poll) {
         return (
-            <div className="flex items-center justify-center h-full w-full text-gray-500 text-2xl font-medium py-12">
-                Lade Abstimmung...
-            </div>
+            <Page>
+                <Page.Inner className="flex-1 flex items-center justify-center text-gray-500 text-2xl font-medium py-12">
+                    Lade Abstimmung...
+                </Page.Inner>
+            </Page>
         );
     }
 
@@ -87,92 +94,100 @@ const ManagePollPage = () => {
 
     return (
         <Theme theme="gray" base="gray">
-            <div className="flex flex-col min-h-full">
+            <Page>
                 <Theme theme={poll.colorScheme.toLowerCase() as any}>
-                    <PollHeader poll={poll} />
+                    <div className="bg-theme-100 w-full flex flex-col items-center">
+                        <Page.Inner>
+                            <PollHeader poll={poll} />
+                        </Page.Inner>
+                    </div>
                 </Theme>
 
-                <ManagePollHeader />
+                <Page.Inner>
+                    <ManagePollHeader />
 
-                <div className="flex flex-col gap-10 pt-0">
-                    <div className="flex flex-col gap-6 p-6 pt-0">
-                        {isPollClosed && (
-                            <span className="text-2xl font-medium text-gray-600">
-                                Diese Abstimmung ist beendet. Es können keine weiteren Stimmen abgegeben werden.
-                            </span>
+                    <div className="flex flex-col gap-10 pt-0">
+                        <div className="flex flex-col gap-6 p-6 pt-0">
+                            {isPollClosed && (
+                                <span className="text-2xl font-medium text-gray-600">
+                                    Diese Abstimmung ist beendet. Es können keine weiteren Stimmen abgegeben werden.
+                                </span>
+                            )}
+
+                            <SecondaryButton asChild disabled={isPollClosed}>
+                                <Link to={generatePath(ROUTES.POLL_SHARE, { pollId: poll!.id })}>
+                                    Abstimmung teilen
+                                </Link>
+                            </SecondaryButton>
+
+                            <PrimaryButton type="button" onClick={handleCloseClick} disabled={isPollClosed}>
+                                Abstimmung beenden
+                            </PrimaryButton>
+
+                            <PrimaryButton
+                                type="button"
+                                onClick={handleDeleteClick}
+                                className="bg-red-600 hover:bg-red-700 active:bg-red-800"
+                            >
+                                Abstimmung löschen
+                            </PrimaryButton>
+                        </div>
+
+                        {pollUsersVoted.length > 0 && (
+                            <div className="p-6 pt-0 flex flex-col gap-6">
+                                <h2 className="text-3xl font-bold  text-black hyphens-auto text-balance flex">
+                                    Abgestimmt
+                                </h2>
+                                <UserList users={pollUsersVoted} />
+                            </div>
                         )}
 
-                        <SecondaryButton asChild disabled={isPollClosed}>
-                            <Link to={generatePath(ROUTES.POLL_SHARE, { pollId: poll!.id })}>Abstimmung teilen</Link>
-                        </SecondaryButton>
-
-                        <PrimaryButton type="button" onClick={handleCloseClick} disabled={isPollClosed}>
-                            Abstimmung beenden
-                        </PrimaryButton>
-
-                        <PrimaryButton
-                            type="button"
-                            onClick={handleDeleteClick}
-                            className="bg-red-600 hover:bg-red-700 active:bg-red-800"
-                        >
-                            Abstimmung löschen
-                        </PrimaryButton>
+                        {pollUsersEligible.length > 0 && (
+                            <div className="p-6 pt-0 flex flex-col gap-6">
+                                <h2 className="text-3xl font-bold  text-black hyphens-auto text-balance flex">Offen</h2>
+                                <UserList users={pollUsersEligible} />
+                            </div>
+                        )}
                     </div>
 
-                    {pollUsersVoted.length > 0 && (
-                        <div className="p-6 pt-0 flex flex-col gap-6">
-                            <h2 className="text-3xl font-bold  text-black hyphens-auto text-balance flex">
-                                Abgestimmt
-                            </h2>
-                            <UserList users={pollUsersVoted} />
-                        </div>
-                    )}
+                    <ConfirmSubmitDialog
+                        title="Abstimmung beenden"
+                        message={
+                            <span className="flex flex-col gap-8 my-4">
+                                <span className="text-gray-600 text-2xl/8 font-medium">
+                                    Bist du sicher, dass du die Abstimmung beenden möchtest? Diese Aktion kann nicht
+                                    rückgängig gemacht werden.
+                                </span>
+                                <span className="text-gray-600 text-2xl/8 font-medium">
+                                    Nach dem Beenden der Abstimmung können keine weiteren Stimmen mehr abgegeben werden
+                                    und die Ergebnisse werden für alle Teilnehmer sichtbar.
+                                </span>
+                            </span>
+                        }
+                        submitLabel="Abstimmung beenden"
+                        cancelLabel="Abbrechen"
+                    />
 
-                    {pollUsersEligible.length > 0 && (
-                        <div className="p-6 pt-0 flex flex-col gap-6">
-                            <h2 className="text-3xl font-bold  text-black hyphens-auto text-balance flex">Offen</h2>
-                            <UserList users={pollUsersEligible} />
-                        </div>
-                    )}
-                </div>
-
-                <ConfirmSubmitDialog
-                    title="Abstimmung beenden"
-                    message={
-                        <span className="flex flex-col gap-8 my-4">
-                            <span className="text-gray-600 text-2xl/8 font-medium">
-                                Bist du sicher, dass du die Abstimmung beenden möchtest? Diese Aktion kann nicht
-                                rückgängig gemacht werden.
+                    <ConfirmDeleteDialog
+                        title="Abstimmung löschen"
+                        message={
+                            <span className="flex flex-col gap-8 my-4">
+                                <span className="text-gray-600 text-2xl/8 font-medium">
+                                    Bist du sicher, dass du die Abstimmung löschen möchtest? Diese Aktion kann nicht
+                                    rückgängig gemacht werden.
+                                </span>
+                                <span className="text-gray-600 text-2xl/8 font-medium">
+                                    Nach dem Löschen der Abstimmung werden alle zugehörigen Daten dauerhaft entfernt und
+                                    können nicht wiederhergestellt werden.
+                                </span>
                             </span>
-                            <span className="text-gray-600 text-2xl/8 font-medium">
-                                Nach dem Beenden der Abstimmung können keine weiteren Stimmen mehr abgegeben werden und
-                                die Ergebnisse werden für alle Teilnehmer sichtbar.
-                            </span>
-                        </span>
-                    }
-                    submitLabel="Abstimmung beenden"
-                    cancelLabel="Abbrechen"
-                />
-
-                <ConfirmDeleteDialog
-                    title="Abstimmung löschen"
-                    message={
-                        <span className="flex flex-col gap-8 my-4">
-                            <span className="text-gray-600 text-2xl/8 font-medium">
-                                Bist du sicher, dass du die Abstimmung löschen möchtest? Diese Aktion kann nicht
-                                rückgängig gemacht werden.
-                            </span>
-                            <span className="text-gray-600 text-2xl/8 font-medium">
-                                Nach dem Löschen der Abstimmung werden alle zugehörigen Daten dauerhaft entfernt und
-                                können nicht wiederhergestellt werden.
-                            </span>
-                        </span>
-                    }
-                    submitLabel="Abstimmung löschen"
-                    cancelLabel="Abbrechen"
-                    danger
-                />
-            </div>
+                        }
+                        submitLabel="Abstimmung löschen"
+                        cancelLabel="Abbrechen"
+                        danger
+                    />
+                </Page.Inner>
+            </Page>
         </Theme>
     );
 };

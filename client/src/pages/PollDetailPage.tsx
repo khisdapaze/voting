@@ -2,18 +2,23 @@ import classnames from '../utils/classnames.ts';
 import React, { useEffect, useState } from 'react';
 import type { Poll } from '../data/types.ts';
 import Theme from '../components/Theme.tsx';
-import { generatePath, Link, useParams } from 'react-router-dom';
+import { generatePath, Link, useParams, useSearchParams } from 'react-router-dom';
 import { ROUTES } from '../routes.ts';
 import { useConfirmDialog } from '../components/ConfirmDialog.tsx';
 import { PrimaryButton, SecondaryButton } from '../components/Button.tsx';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { getPollQuery, voteInPollMutation } from '../data/api.ts';
 import { useViewer } from '../contexts/AuthenticationContext.tsx';
+import Page from '../components/Page.tsx';
 
 export const PollHeader = ({ className, poll, ...props }: React.ComponentPropsWithRef<'header'> & { poll: Poll }) => {
     return (
         <header className={classnames('flex flex-col gap-4 p-6 py-8 bg-theme-100', className)} {...props}>
-            <div className="flex items-center justify-end -mt-2">
+            <div className="flex items-center justify-between -mt-2">
+                <span className="rounded-full font-semibold text-2xl text-theme-800 opacity-50">
+                    {poll.createdBy?.name} fragt:
+                </span>
+
                 <SecondaryButton asChild className="p-2 px-4">
                     <Link to={generatePath(ROUTES.HOME)}>Abbrechen</Link>
                 </SecondaryButton>
@@ -126,9 +131,16 @@ const PollForm = ({
         }
     };
 
-    const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
-        onValuesSubmit?.(values);
+        setIsSubmitting(true);
+        try {
+            await onValuesSubmit?.(values);
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     return (
@@ -151,7 +163,9 @@ const PollForm = ({
             </div>
 
             <div className="flex flex-col gap-6">
-                <PrimaryButton disabled={values.length === 0}>Absenden</PrimaryButton>
+                <PrimaryButton disabled={values.length === 0} isLoading={isSubmitting}>
+                    Absenden
+                </PrimaryButton>
             </div>
         </form>
     );
@@ -181,7 +195,7 @@ const PollResults = ({ poll, className, ...props }: React.ComponentPropsWithRef<
                                 <span
                                     className={classnames(
                                         'text-2xl font-semibold',
-                                        isMax ? 'text-theme-900' : 'text-theme-900/50'
+                                        isMax ? 'text-theme-900' : 'text-theme-900 opacity-50'
                                     )}
                                 >
                                     {poll?.results?.[option] || 0} Stimmen
@@ -218,7 +232,7 @@ const PollWaitingForResults = ({ poll, className, ...props }: React.ComponentPro
                 </span>
             </div>
 
-            <SecondaryButton asChild>
+            <SecondaryButton asChild className="bg-theme-200 hover:bg-theme-300 active:bg-theme-400">
                 <Link to={generatePath(ROUTES.HOME)}>Schließen</Link>
             </SecondaryButton>
         </div>
@@ -230,22 +244,28 @@ const PollDetailPage = () => {
 
     const viewer = useViewer();
 
-    const { data: poll, refetch, isRefetching } = useQuery(getPollQuery(pollId || ''));
+    // for people that obtain a secret link
+    const [searchParams] = useSearchParams();
+    const secretParam = searchParams.get('secret') || undefined;
+
+    const { data: poll, refetch } = useQuery(getPollQuery(pollId || '', secretParam));
     const { mutateAsync: vote, isPending } = useMutation(voteInPollMutation(pollId || ''));
 
+    const [isSubmitted, setIsSubmitted] = useState(false);
+
     const pollUser = poll?.users?.find((user) => user.email === viewer?.email);
-    const isVoted = pollUser?.status === 'VOTED' || isPending || isRefetching;
-    const isWaitingForResults = poll?.status !== 'CLOSED';
+    const isVoted = pollUser?.status === 'VOTED' || isPending || isSubmitted;
+    const isClosed = poll?.status === 'CLOSED';
 
     useEffect(() => {
-        if (!isWaitingForResults) return;
+        if (!poll || !isVoted || isClosed) return;
 
-        const timoutId = setTimeout(() => {
+        const intervalId = setInterval(() => {
             refetch();
         }, 5000);
 
-        return () => clearTimeout(timoutId);
-    }, [isWaitingForResults]);
+        return () => clearInterval(intervalId);
+    }, [poll, isVoted, isClosed]);
 
     const { confirm, ConfirmDialog } = useConfirmDialog();
 
@@ -253,44 +273,53 @@ const PollDetailPage = () => {
         const confirmed = await confirm();
         if (!confirmed) return;
 
-        await vote({ values });
+        setIsSubmitted(true);
+
+        await vote({ values, secret: secretParam });
         await refetch();
     };
 
     if (!poll) {
         return (
-            <div className="flex items-center justify-center h-full w-full text-gray-500 text-2xl font-medium py-12">
-                Lade Abstimmung...
-            </div>
+            <Page>
+                <Page.Inner className="flex-1 flex items-center justify-center text-gray-500 text-2xl font-medium py-12">
+                    Lade Abstimmung...
+                </Page.Inner>
+            </Page>
         );
     }
 
-    const isViewerEligible = poll.users && poll.users?.some((user) => user.email === viewer?.email);
     const isViewerOwner = poll.createdBy!.email === viewer?.email;
 
     return (
         <Theme theme={poll.colorScheme?.toLowerCase() as any} base="gray">
-            <div className="flex flex-col min-h-full">
-                <PollHeader poll={poll} />
-                {!isVoted && isViewerEligible ? (
-                    <PollForm poll={poll} className="flex-1" onValuesSubmit={handleFormValuesSubmit} />
-                ) : !isWaitingForResults ? (
-                    <PollResults poll={poll} className="flex-1" />
-                ) : (
-                    <PollWaitingForResults poll={poll} className="flex-1" />
-                )}
+            <Page>
+                <div className="bg-theme-100 w-full flex flex-col items-center flex-1">
+                    <Page.Inner className="flex-1">
+                        <PollHeader poll={poll} />
+                        {!isVoted && !isClosed ? (
+                            <PollForm poll={poll} className="flex-1" onValuesSubmit={handleFormValuesSubmit} />
+                        ) : isClosed ? (
+                            <PollResults poll={poll} className="flex-1" />
+                        ) : (
+                            <PollWaitingForResults poll={poll} className="flex-1" />
+                        )}
+                    </Page.Inner>
+                </div>
 
-                {isViewerOwner && (
-                    <Theme theme="gray" base="gray">
-                        <div className="p-6 bg-white">
-                            <SecondaryButton asChild>
-                                <Link to={generatePath(ROUTES.POLL_MANAGE, { pollId: poll!.id })}>
-                                    Abstimmung verwalten
-                                </Link>
-                            </SecondaryButton>
-                        </div>
-                    </Theme>
-                )}
+                <Page.Inner>
+                    {isViewerOwner && (
+                        <Theme theme="gray" base="gray">
+                            <div className="p-6 bg-white">
+                                <SecondaryButton asChild>
+                                    <Link to={generatePath(ROUTES.POLL_MANAGE, { pollId: poll!.id })}>
+                                        Abstimmung verwalten
+                                    </Link>
+                                </SecondaryButton>
+                            </div>
+                        </Theme>
+                    )}
+                </Page.Inner>
 
                 <ConfirmDialog
                     title="Stimme absenden"
@@ -307,7 +336,7 @@ const PollDetailPage = () => {
                     submitLabel="Stimme absenden"
                     cancelLabel="Abbrechen"
                 />
-            </div>
+            </Page>
         </Theme>
     );
 };
