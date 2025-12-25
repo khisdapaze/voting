@@ -1,8 +1,34 @@
-# khisdapaze - Voting
+# Voting
 
-A very simple anonymous voting app. Users can be invited directly or join via QR code. Anonymity is guaranteed by not storing any connection to the user once voted.
+A privacy-focused anonymous voting app. Create polls with single or multiple choice options, share them via QR codes or secret links, and track participation in real-time. Anonymity is guaranteed by not storing any connection to voters once they've voted. Results are revealed only when the poll is closed.
 
 ![Voting Interface](docs/poll.png)
+
+## Features
+
+**Poll Creation & Customization:**
+- Create polls with unlimited options
+- Choose between single-choice or multiple-choice voting
+- Select from 21 color schemes (Red, Orange, Amber, Yellow, Lime, Green, Teal, Cyan, Sky, Blue, Indigo, Violet, Purple, Fuchsia, Pink, Rose, Slate, Gray, Zinc, Neutral, Stone)
+- Automatic poll lifecycle (auto-close after 7 days, auto-delete after 30 days)
+
+**Sharing & Access:**
+- Share via QR codes for easy mobile access
+- Secret links (format: `xxx-xxxx-xxx`) allow anyone to vote anonymously
+- Direct user invitation from your organization's user list
+- Copy-to-clipboard functionality for easy sharing
+
+**Poll Management:**
+- Real-time tracking of who has voted vs. who hasn't
+- Manual poll closing at any time
+- Delete polls when no longer needed
+- Creator-only permissions for poll control
+
+**Privacy & Security:**
+- Anonymous voting (no voter identity stored after voting)
+- Google OAuth authentication for poll creators
+- Results visible only after poll is closed
+- Access control based on user invitations or secret links
 
 ## Tech Stack
 
@@ -12,7 +38,6 @@ A very simple anonymous voting app. Users can be invited directly or join via QR
 - TailwindCSS 4
 - React Router
 - React Query (TanStack Query)
-- React Hook Form
 - QR Code generation
 
 **Backend:**
@@ -38,7 +63,7 @@ A very simple anonymous voting app. Users can be invited directly or join via QR
 
 ```bash
 git clone <repository-url>
-cd vote
+cd voting
 ```
 
 2. **Configure environment variables**
@@ -130,12 +155,32 @@ vote/
 │   │   └── utils/       # Utilities
 │   └── package.json
 ├── server/              # Python backend
-│   ├── src/             # Source code
+│   ├── src/
+│   │   ├── __main__.py  # Main server code (Flask dev server + DO Functions handler)
+│   │   └── users.json   # User database
 │   └── project.yml      # DigitalOcean Functions config
 ├── .env.example         # Environment variables template
 ├── .gitignore
 └── build_and_deploy.sh  # Deployment script
 ```
+
+## API Endpoints
+
+All endpoints require Google OAuth authentication via `Authorization: Bearer <token>` header.
+
+**Users:**
+- `GET /api/users` - List all users in the organization
+
+**Polls:**
+- `GET /api/polls` - List all polls the authenticated user has access to
+- `GET /api/polls/:id` - Get specific poll details (optional `?secret=xxx-xxxx-xxx` query param)
+- `POST /api/polls` - Create a new poll
+- `DELETE /api/polls/:id` - Delete a poll (creator only)
+
+**Poll Actions:**
+- `POST /api/polls/:id/users` - Add users to a poll (creator only)
+- `POST /api/polls/:id/vote` - Submit a vote (requires body: `{values: string[], secret?: string}`)
+- `POST /api/polls/:id/close` - Close a poll (creator only)
 
 ## License
 
