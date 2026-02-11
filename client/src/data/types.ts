@@ -27,6 +27,7 @@ export interface Poll {
     title: string;
     options: string[];
     choiceType: 'SINGLE' | 'MULTIPLE';
+    maxVotes?: number | null;
     colorScheme:
         | 'RED'
         | 'ORANGE'

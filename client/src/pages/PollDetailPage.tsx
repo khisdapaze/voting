@@ -123,9 +123,15 @@ const PollForm = ({
 
     const handleOptionToggle = (optionId: string) => {
         if (poll?.choiceType === 'MULTIPLE') {
-            setValues((prevValues) =>
-                prevValues.includes(optionId) ? prevValues.filter((id) => id !== optionId) : [...prevValues, optionId]
-            );
+            setValues((prevValues) => {
+                if (prevValues.includes(optionId)) {
+                    return prevValues.filter((id) => id !== optionId);
+                }
+                if (poll.maxVotes && prevValues.length >= poll.maxVotes) {
+                    return prevValues;
+                }
+                return [...prevValues, optionId];
+            });
         } else {
             setValues([optionId]);
         }
@@ -155,11 +161,23 @@ const PollForm = ({
                         key={option}
                         isMultipleChoice={poll?.choiceType === 'MULTIPLE'}
                         isSelected={values.includes(option)}
+                        disabled={
+                            poll?.choiceType === 'MULTIPLE' &&
+                            !!poll.maxVotes &&
+                            !values.includes(option) &&
+                            values.length >= poll.maxVotes
+                        }
                         onClick={() => handleOptionToggle(option)}
                     >
                         {option}
                     </OptionButton>
                 ))}
+
+                {poll?.choiceType === 'MULTIPLE' && poll.maxVotes && (
+                    <span className="text-xl font-medium text-theme-700 opacity-70">
+                        Maximal {poll.maxVotes} {poll.maxVotes === 1 ? 'Stimme' : 'Stimmen'}
+                    </span>
+                )}
             </div>
 
             <div className="flex flex-col gap-6">

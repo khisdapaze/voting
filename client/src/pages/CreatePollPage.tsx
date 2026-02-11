@@ -126,6 +126,7 @@ const CreatePollForm = ({
     const [title, setTitle] = useState('');
     const [options, setOptions] = useState<string[]>(['', '']);
     const [choiceType, setChoiceType] = useState<keyof typeof CHOICE_TYPES>('SINGLE');
+    const [maxVotes, setMaxVotes] = useState<string>('');
     const [colorScheme, setColorScheme] = useState<keyof typeof COLOR_SCHEMES>('INDIGO');
 
     const handleOptionChange = (index: number, value: string) => {
@@ -150,6 +151,7 @@ const CreatePollForm = ({
                 title,
                 options: filteredOptions,
                 choiceType,
+                maxVotes: choiceType === 'MULTIPLE' && maxVotes ? parseInt(maxVotes, 10) : null,
                 colorScheme,
             });
         } finally {
@@ -197,6 +199,23 @@ const CreatePollForm = ({
                         />
                     </div>
                 </div>
+
+                {choiceType === 'MULTIPLE' && (
+                    <div className="flex flex-col gap-4 flex-1">
+                        <label className="flex items-center gap-4 text-2xl font-semibold text-gray-700">
+                            Maximale Stimmen
+                        </label>
+
+                        <input
+                            type="number"
+                            min="1"
+                            className="flex items-center gap-4 text-2xl font-semibold text-gray-900 border-4 border-gray-200 bg-gray-200 rounded-5xl py-2 px-4 w-full hover:border-gray-300 hover:bg-gray-300"
+                            placeholder="Unbegrenzt"
+                            value={maxVotes}
+                            onChange={(e) => setMaxVotes(e.target.value)}
+                        />
+                    </div>
+                )}
 
                 <div className="flex flex-col gap-4 flex-1">
                     <label className="flex items-center gap-4 text-2xl font-semibold text-gray-700">Farbschema</label>

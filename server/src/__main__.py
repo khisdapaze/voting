@@ -95,6 +95,7 @@ class PollMeta:
     choice_type: str
     color_scheme: str
     status: str
+    max_votes: str = ""
 
 
 @dataclass
@@ -109,6 +110,7 @@ class Poll:
     status: str
     options: list
     created_by: dict
+    max_votes: Optional[int] = None
     users: Optional[list[PollUser]] = None
     results: Optional[dict] = None
 
@@ -204,6 +206,9 @@ def get_poll(poll_id: str) -> Optional[Poll]:
 
     poll_meta["id"] = poll_id
     poll_meta["options"] = r.lrange(f"{poll_id}:options", 0, -1)
+
+    max_votes_str = poll_meta.get("max_votes", "")
+    poll_meta["max_votes"] = int(max_votes_str) if max_votes_str else None
 
     created_by = next(
         (user for user in USERS if user.email == poll_meta["created_by_email"]), None
@@ -323,8 +328,6 @@ def handle_get_poll(user: User, poll_id: str, secret: str = None):
     if not poll:
         return error_response("Poll not found", 404)
 
-    print(secret)
-
     if not can_see_poll(user, poll, secret):
         return error_response(f"You do not have access to this poll", 403)
 
@@ -345,6 +348,7 @@ def generate_poll_secret():
 
 def handle_create_poll(user: User, data: dict):
     try:
+        max_votes = data.get("max_votes")
         poll_meta = PollMeta(
             secret=generate_poll_secret(),
             created_at=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
@@ -353,6 +357,7 @@ def handle_create_poll(user: User, data: dict):
             choice_type=data["choice_type"],
             color_scheme=data["color_scheme"],
             status="OPEN",
+            max_votes=str(max_votes) if max_votes else "",
         )
     except KeyError as e:
         return error_response(f"Missing required field: {str(e)}", 400)
@@ -426,6 +431,12 @@ def handle_vote_in_poll(user: User, poll_id: str, data: dict):
     invalid_values = set(values) - set(poll.options)
     if invalid_values:
         return error_response(f"Invalid vote options: {', '.join(invalid_values)}", 400)
+
+    if poll.choice_type == ChoiceType.SINGLE.value and len(set(values)) > 1:
+        return error_response("Single choice polls only allow one vote", 400)
+
+    if poll.max_votes is not None and len(set(values)) > poll.max_votes:
+        return error_response(f"You can select at most {poll.max_votes} options", 400)
 
     r = get_redis()
     pipeline = r.pipeline()
