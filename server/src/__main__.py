@@ -161,23 +161,16 @@ def verify_google_token(token: str) -> Optional[User]:
 
 def get_results(poll_id: str) -> dict:
     r = get_redis()
-    results = {}
-
-    for key in r.scan_iter(match=f"{poll_id}:votes:*", count=100):
-        vote_value = r.get(key)
-        if vote_value:
-            results[vote_value] = results.get(vote_value, 0) + 1
-
-    return results
+    return {
+        option: int(count)
+        for option, count in r.hgetall(f"{poll_id}:results").items()
+    }
 
 
 def get_poll_users(poll_id: str) -> list[PollUser]:
     r = get_redis()
     poll_users = []
-    for key in r.scan_iter(match=f"{poll_id}:users:*", count=100):
-        user_email = key.split(":")[-1]
-        user_status = r.get(key)
-
+    for user_email, user_status in r.hgetall(f"{poll_id}:users").items():
         user_info = next(
             (user for user in USERS if user.email == user_email),
             User(
@@ -196,6 +189,19 @@ def get_poll_users(poll_id: str) -> list[PollUser]:
         )
 
     return poll_users
+
+
+def delete_poll_data(poll_id: str):
+    r = get_redis()
+    pipeline = r.pipeline()
+    pipeline.srem("polls", poll_id)
+    pipeline.delete(
+        f"{poll_id}:meta",
+        f"{poll_id}:options",
+        f"{poll_id}:users",
+        f"{poll_id}:results",
+    )
+    pipeline.execute()
 
 
 def get_poll(poll_id: str) -> Optional[Poll]:
@@ -226,17 +232,15 @@ def get_poll(poll_id: str) -> Optional[Poll]:
         - datetime.fromisoformat(poll_meta["created_at"].replace("Z", "+00:00"))
     ).days
 
-    if poll_age_days >= 7:
+    if poll_age_days >= 30:
+        # delete polls older than 30 days automatically
+        delete_poll_data(poll_id)
+        return None
+
+    elif poll_age_days >= 7:
         # close polls older than 7 days automatically
         poll_meta["status"] = PollStatus.CLOSED.value
         r.hset(f"{poll_id}:meta", "status", PollStatus.CLOSED.value)
-
-    elif poll_age_days >= 30:
-        # delete polls older than 30 days automatically
-        keys = list(r.scan_iter(match=f"{poll_id}:*", count=100))
-        if keys:
-            r.delete(*keys)
-        return None
 
     if poll_meta["status"] == PollStatus.CLOSED.value:
         poll_meta["results"] = get_results(poll_id)
@@ -311,9 +315,13 @@ def handle_get_users(user: User):
 def handle_get_polls(user: User):
     r = get_redis()
     polls = []
-    for key in r.scan_iter(match="*:meta", count=100):
-        poll = get_poll(key.split(":")[0])
-        if poll and can_see_poll(user, poll):
+    for poll_id in r.smembers("polls"):
+        poll = get_poll(poll_id)
+        if poll is None:
+            # poll data is gone but the index entry remained
+            r.srem("polls", poll_id)
+            continue
+        if can_see_poll(user, poll):
             # Hide secret from non-creators
             if poll.created_by_email != user.email:
                 poll.secret = ""
@@ -367,9 +375,10 @@ def handle_create_poll(user: User, data: dict):
 
     r = get_redis()
     pipeline = r.pipeline()
+    pipeline.sadd("polls", poll_id)
     pipeline.hset(f"{poll_id}:meta", mapping=asdict(poll_meta))
     pipeline.rpush(f"{poll_id}:options", *options)
-    pipeline.set(f"{poll_id}:users:{user.email}", PollUserStatus.ELIGIBLE.value)
+    pipeline.hset(f"{poll_id}:users", user.email, PollUserStatus.ELIGIBLE.value)
     pipeline.execute()
 
     return response(201, asdict(get_poll(poll_id)))
@@ -383,10 +392,7 @@ def handle_delete_poll(user: User, poll_id: str):
     if poll.created_by_email != user.email:
         return error_response("Only the poll creator can delete the poll", 403)
 
-    r = get_redis()
-    keys = list(r.scan_iter(match=f"{poll_id}:*", count=100))
-    if keys:
-        r.delete(*keys)
+    delete_poll_data(poll_id)
 
     return response(200, {"success": True})
 
@@ -403,7 +409,7 @@ def handle_add_poll_users(user: User, poll_id: str, data: dict):
     r = get_redis()
     pipeline = r.pipeline()
     for u in users:
-        pipeline.set(f"{poll_id}:users:{u['email']}", PollUserStatus.ELIGIBLE.value)
+        pipeline.hset(f"{poll_id}:users", u["email"], PollUserStatus.ELIGIBLE.value)
     pipeline.execute()
 
     return response(200, asdict(get_poll(poll_id)))
@@ -415,9 +421,8 @@ def handle_vote_in_poll(user: User, poll_id: str, data: dict):
         return error_response("Poll not found", 404)
 
     secret = data.get("secret")
-    user_status_key = f"{poll_id}:users:{user.email}"
     r = get_redis()
-    user_status = r.get(user_status_key)
+    user_status = r.hget(f"{poll_id}:users", user.email)
     if user_status != PollUserStatus.ELIGIBLE.value and poll.secret != secret:
         return error_response("You are not eligible to vote in this poll", 403)
 
@@ -438,13 +443,11 @@ def handle_vote_in_poll(user: User, poll_id: str, data: dict):
     if poll.max_votes is not None and len(set(values)) > poll.max_votes:
         return error_response(f"You can select at most {poll.max_votes} options", 400)
 
-    r = get_redis()
     pipeline = r.pipeline()
     for value in set(values):
-        vote_id = str(uuid.uuid4())
-        pipeline.set(f"{poll_id}:votes:{vote_id}", value)
+        pipeline.hincrby(f"{poll_id}:results", value, 1)
 
-    pipeline.set(f"{poll_id}:users:{user.email}", PollUserStatus.VOTED.value)
+    pipeline.hset(f"{poll_id}:users", user.email, PollUserStatus.VOTED.value)
     pipeline.execute()
 
     return response(200, {"success": True})
